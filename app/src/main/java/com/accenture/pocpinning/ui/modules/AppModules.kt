@@ -11,6 +11,7 @@ import com.accenture.pocpinning.data.repository.TodoRepository
 import com.accenture.pocpinning.domain.todo.FetchTodoUseCase
 import com.google.gson.GsonBuilder
 import kotlinx.coroutines.Dispatchers
+import okhttp3.CertificatePinner
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.core.module.Module
@@ -41,17 +42,17 @@ fun createAppModules(): Module = module {
 fun createHttpClient(context: Context): OkHttpClient {
     val interceptor = HttpLoggingInterceptor()
     interceptor.setLevel(HttpLoggingInterceptor.Level.BODY)
+
+    // Configuración de CertificatePinner con un hash incorrecto
+    val certificatePinner = CertificatePinner.Builder()
+        .add("jsonplaceholder.typicode.com", "sha256/INVALID_HASH") // Hash incorrecto
+        .build()
+
     return OkHttpClient.Builder()
         .readTimeout(5, TimeUnit.MINUTES)
         .retryOnConnectionFailure(true)
         .addInterceptor(interceptor)
-        .addInterceptor { chain ->
-            val original = chain.request()
-            val request = original.newBuilder()
-                .method(original.method, original.body)
-                .build()
-            chain.proceed(request)
-        }
+        .certificatePinner(certificatePinner)
         .build()
 }
 
