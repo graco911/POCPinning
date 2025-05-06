@@ -1,6 +1,7 @@
 package com.accenture.pocpinning.ui.modules
 
 import android.content.Context
+import com.accenture.pocpinning.ConnectionMode
 import com.accenture.pocpinning.data.mock.todo.TodoMockAPI
 import com.accenture.pocpinning.data.mock.todo.TodoMockDataSource
 import com.accenture.pocpinning.data.remote.todo.ITodoAPI
@@ -18,12 +19,17 @@ import org.koin.core.module.Module
 import org.koin.dsl.module
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.security.SecureRandom
+import java.security.cert.X509Certificate
 import java.util.concurrent.TimeUnit
+import javax.net.ssl.SSLContext
+import javax.net.ssl.TrustManager
+import javax.net.ssl.X509TrustManager
 
-fun createAppModules(): Module = module {
+fun createAppModules(connectionMode: ConnectionMode): Module = module {
     single {
         createWebService<TodoAPI>(
-            okHttpClient = createHttpClient(get()),
+            okHttpClient = createHttpClient(get(), connectionMode),
             baseUrl = "https://jsonplaceholder.typicode.com/"
         )
     }
@@ -39,21 +45,40 @@ fun createAppModules(): Module = module {
     single { FetchTodoUseCase(get(), get()) }
 }
 
-fun createHttpClient(context: Context): OkHttpClient {
-    val interceptor = HttpLoggingInterceptor()
-    interceptor.setLevel(HttpLoggingInterceptor.Level.BODY)
+fun createHttpClient(context: Context, mode: ConnectionMode): OkHttpClient {
+    val interceptor = HttpLoggingInterceptor().apply {
+        level = HttpLoggingInterceptor.Level.BODY
+    }
 
-    // Configuración de CertificatePinner con un hash incorrecto
-    val certificatePinner = CertificatePinner.Builder()
-        .add("jsonplaceholder.typicode.com", "sha256/INVALID_HASH") // Hash incorrecto
-        .build()
-
-    return OkHttpClient.Builder()
-        .readTimeout(5, TimeUnit.MINUTES)
-        .retryOnConnectionFailure(true)
+    val builder = OkHttpClient.Builder()
+        .readTimeout(60, TimeUnit.SECONDS)
         .addInterceptor(interceptor)
-        .certificatePinner(certificatePinner)
-        .build()
+
+    when (mode) {
+        ConnectionMode.NORMAL -> {
+        }
+        ConnectionMode.INSECURE -> {
+            val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
+                override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun checkServerTrusted(chain: Array<X509Certificate>, authType: String) {}
+                override fun getAcceptedIssuers(): Array<X509Certificate> = arrayOf()
+            })
+
+            val sslContext = SSLContext.getInstance("SSL")
+            sslContext.init(null, trustAllCerts, SecureRandom())
+
+            builder.sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
+            builder.hostnameVerifier { _, _ -> true }
+        }
+        ConnectionMode.PINNING -> {
+            val certificatePinner = CertificatePinner.Builder()
+                .add("jsonplaceholder.typicode.com", "sha256/6t4D2jK9NkdrTtTClNH3RxxFQg59Y8M9+03xFqfhcXg=")
+                .build()
+            builder.certificatePinner(certificatePinner)
+        }
+    }
+
+    return builder.build()
 }
 
 inline fun <reified T> createWebService(

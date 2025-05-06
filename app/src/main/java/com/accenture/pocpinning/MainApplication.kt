@@ -8,13 +8,22 @@ import org.koin.core.context.startKoin
 class MainApplication : Application() {
 
     override fun onCreate() {
+
         super.onCreate()
 
-        val appModules = createAppModules()
+        val connectionMode = ConnectionMode.PINNING
+
+        val appModules = createAppModules(connectionMode)
 
         startKoin {
             androidContext(applicationContext)
             modules(appModules)
         }
     }
+}
+
+enum class ConnectionMode {
+    NORMAL,
+    INSECURE,
+    PINNING
 }
