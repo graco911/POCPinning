@@ -13,7 +13,10 @@ class MainApplication : Application() {
 
         val connectionMode = ConnectionMode.PINNING
 
-        val appModules = createAppModules(connectionMode)
+        val pins = "jsonplaceholder.typicode.com:Mh7ufr6Yepdwv4IGnMFCJcVG9P0YeIqzaMr+euJo0/U=," +
+                "jsonplaceholder.typicode.com:kIdp6NNEd8wsugYyyIYFsi1ylMCED3hZbSR8ZFsa/A4="
+
+        val appModules = createAppModules(connectionMode, pins)
 
         startKoin {
             androidContext(applicationContext)

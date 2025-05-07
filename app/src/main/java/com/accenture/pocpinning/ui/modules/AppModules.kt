@@ -26,10 +26,10 @@ import javax.net.ssl.SSLContext
 import javax.net.ssl.TrustManager
 import javax.net.ssl.X509TrustManager
 
-fun createAppModules(connectionMode: ConnectionMode): Module = module {
+fun createAppModules(connectionMode: ConnectionMode, pins: String): Module = module {
     single {
         createWebService<TodoAPI>(
-            okHttpClient = createHttpClient(get(), connectionMode),
+            okHttpClient = createHttpClient(get(), connectionMode, pins),
             baseUrl = "https://jsonplaceholder.typicode.com/"
         )
     }
