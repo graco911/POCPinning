@@ -45,7 +45,7 @@ fun createAppModules(connectionMode: ConnectionMode): Module = module {
     single { FetchTodoUseCase(get(), get()) }
 }
 
-fun createHttpClient(context: Context, mode: ConnectionMode): OkHttpClient {
+fun createHttpClient(context: Context, mode: ConnectionMode, pinsConfig: String = ""): OkHttpClient {
     val interceptor = HttpLoggingInterceptor().apply {
         level = HttpLoggingInterceptor.Level.BODY
     }
@@ -56,7 +56,9 @@ fun createHttpClient(context: Context, mode: ConnectionMode): OkHttpClient {
 
     when (mode) {
         ConnectionMode.NORMAL -> {
+            // Sin configuración extra
         }
+
         ConnectionMode.INSECURE -> {
             val trustAllCerts = arrayOf<TrustManager>(object : X509TrustManager {
                 override fun checkClientTrusted(chain: Array<X509Certificate>, authType: String) {}
@@ -70,11 +72,20 @@ fun createHttpClient(context: Context, mode: ConnectionMode): OkHttpClient {
             builder.sslSocketFactory(sslContext.socketFactory, trustAllCerts[0] as X509TrustManager)
             builder.hostnameVerifier { _, _ -> true }
         }
+
         ConnectionMode.PINNING -> {
-            val certificatePinner = CertificatePinner.Builder()
-                .add("jsonplaceholder.typicode.com", "sha256/6t4D2jK9NkdrTtTClNH3RxxFQg59Y8M9+03xFqfhcXg=")
-                .build()
-            builder.certificatePinner(certificatePinner)
+            val pinnerBuilder = CertificatePinner.Builder()
+
+            pinsConfig.split(",")
+                .mapNotNull { entry ->
+                    val parts = entry.split(":")
+                    if (parts.size == 2) Pair(parts[0].trim(), parts[1].trim()) else null
+                }
+                .forEach { (domain, hash) ->
+                    pinnerBuilder.add(domain, "sha256/$hash")
+                }
+
+            builder.certificatePinner(pinnerBuilder.build())
         }
     }
 
